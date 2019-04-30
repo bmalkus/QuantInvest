@@ -1,5 +1,6 @@
 .idea/
 test.ipynb
+results/
 
 # Created by https://www.gitignore.io/api/macos,python,pycharm,jupyternotebook
 # Edit at https://www.gitignore.io/?templates=macos,python,pycharm,jupyternotebook

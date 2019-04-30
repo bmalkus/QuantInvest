@@ -1,4 +1,8 @@
+import os
+
 import tensorflow as tf
+from tensorflow.python.framework.errors_impl import NotFoundError
+
 tf.logging.set_verbosity(tf.logging.ERROR)
 import numpy as np
 import tflearn
@@ -7,6 +11,7 @@ from market_env import MarketEnv
 
 
 class PolicyPG:
+
     def __init__(self, env: MarketEnv, lookback_window):
         self.learning_rate = 10e-3
 
@@ -24,11 +29,16 @@ class PolicyPG:
 
         self.future_returns = tf.placeholder(tf.float32, [None, self.number_of_assets])
         self.pv_vector = tf.reduce_sum(tf.multiply(self.new_weights, self.future_returns), reduction_indices=[1])
-        self.profit = tf.reduce_prod(self.pv_vector)
+        self.profit = tf.reduce_prod(self.pv_vector) - self.tc()
         self.loss = -tf.reduce_mean(tf.log(self.pv_vector))
         self.optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
         self.session.run(tf.global_variables_initializer())
+
+        self.saver = tf.train.Saver()
+
+    def tc(self):
+        return tf.reduce_sum(tf.abs(self.new_weights - self.prev_weights), axis=1) * 0.019
 
     def __build_network(self):
         prices = tf.placeholder(
@@ -39,25 +49,26 @@ class PolicyPG:
         network = tflearn.layers.conv_2d(
             prices,
             2,
-            [1, 2],
+            [1, 4],
             [1, 1, 1, 1],
             'valid',
             'relu'
         )
         network = tflearn.layers.conv_2d(
             network,
-            48,
+            # 48,
+            1,
             [1, network.get_shape()[2]],
             [1, 1],
             'valid',
             'relu',
             regularizer='L2',
-            weight_decay=5e-9
+            # weight_decay=5e-9
         )
 
         w_previous = tf.placeholder(tf.float32, shape=[None, self.number_of_assets], name='previous_weights')
 
-        network = tf.concat([network, tf.reshape(w_previous, [-1, self.number_of_assets, 1, 1])], axis=3)
+        network = tf.concat([network, tf.reshape(w_previous, [-1, self.number_of_assets, 1, 1])], axis=2)
         network = tflearn.layers.conv_2d(
             network,
             1,
@@ -66,7 +77,7 @@ class PolicyPG:
             'valid',
             'relu',
             regularizer='L2',
-            weight_decay=5e-9
+            # weight_decay=5e-9
         )
         network = tf.layers.flatten(network)
         w_init = tf.random_uniform_initializer(-1, 1)
@@ -101,3 +112,19 @@ class PolicyPG:
                 self.prev_weights: curr_weights
             }
         )
+
+    @staticmethod
+    def __build_path(name):
+        return './results/{0}/{0}'.format(name)
+
+    def try_load(self, name):
+        try:
+            self.saver.restore(self.session, self.__build_path(name))
+            return True
+        except (ValueError, NotFoundError):
+            return False
+
+    def save(self, name):
+        path = self.__build_path(name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self.saver.save(self.session, path)
