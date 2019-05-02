@@ -48,17 +48,38 @@ class PolicyPG:
         )
         network = tflearn.layers.conv_2d(
             prices,
-            2,
-            [1, 4],
+            64,
+            [1, 3],
             [1, 1, 1, 1],
             'valid',
             'relu'
         )
+        network = tflearn.layers.avg_pool_2d(
+            network,
+            [1, 3],
+            1,
+            'valid'
+        )
         network = tflearn.layers.conv_2d(
             network,
-            # 48,
+            16,
+            [1, 3],
+            [1, 1],
+            'valid',
+            'relu',
+            regularizer='L2',
+            # weight_decay=5e-9
+        )
+        network = tflearn.layers.avg_pool_2d(
+            network,
+            [1, 3],
             1,
-            [1, network.get_shape()[2]],
+            'valid'
+        )
+        network = tflearn.layers.conv_2d(
+            network,
+            1,
+            [1, 2],
             [1, 1],
             'valid',
             'relu',
@@ -68,18 +89,9 @@ class PolicyPG:
 
         w_previous = tf.placeholder(tf.float32, shape=[None, self.number_of_assets], name='previous_weights')
 
-        network = tf.concat([network, tf.reshape(w_previous, [-1, self.number_of_assets, 1, 1])], axis=2)
-        network = tflearn.layers.conv_2d(
-            network,
-            1,
-            [1, network.get_shape()[2]],
-            [1, 1],
-            'valid',
-            'relu',
-            regularizer='L2',
-            # weight_decay=5e-9
-        )
+        network = tf.concat([network, tf.reshape(w_previous, [-1, self.number_of_assets, 1, 1])], axis=3)
         network = tf.layers.flatten(network)
+
         w_init = tf.random_uniform_initializer(-1, 1)
         out = tf.layers.dense(network, self.number_of_assets, activation=tf.nn.softmax, kernel_initializer=w_init,
                               name='new_weights')

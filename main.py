@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 
 import numpy as np
+import pandas as pd
 
 from PolicyPG import PolicyPG
 from market_env import MarketEnv
@@ -55,16 +56,16 @@ def one_epoch(env, policy):
         if progress <= 1:
             mult = mtm_returns
             predicted = (new_weights * mult.T) / (np.dot(new_weights, mult))
-            new_weights = (0 + 0.05 * progress) * predicted + (1 - 0.05 * progress) * curr_weights
+            new_weights = (0.5 + 0.2 * progress) * predicted + (0.5 - 0.2 * progress) * curr_weights
             # new_weights = predicted
 
         # if env.current_month == 5:
         #     print(curr_weights - predicted)
 
-        # if np.random.randint(10) < 1:
-        #     new_weights += (np.random.random(7) - 0.5) / 5
-        #     new_weights = np.abs(new_weights)
-        #     new_weights /= np.sum(new_weights)
+        if np.random.randint(10) < 1:
+            new_weights += (np.random.random(7) - 0.5) / 2
+            new_weights = np.abs(new_weights)
+            new_weights /= np.sum(new_weights)
 
         # store current step, later, policy will be trained on that
         if not env.in_last_month():
@@ -107,7 +108,8 @@ def backtest(env: MarketEnv, name, policy):
         return
 
     total_reward = 1
-    steps = []
+    weights = []
+    returns = []
 
     prev_weights = np.array([[0, 0, 0, 0, 0, 0, 0]])
 
@@ -121,18 +123,22 @@ def backtest(env: MarketEnv, name, policy):
         mtm_returns = env.current_mtm_returns()
 
         portfolio_change = np.dot(curr_weights, mtm_returns)
-        reward = portfolio_change[0]
+        ret = portfolio_change[0]
         if np.sum(prev_weights) != 0:
-            reward -= env.transaction_cost(prev_weights, curr_weights)
-        total_reward *= reward
+            ret -= env.transaction_cost(prev_weights, curr_weights)
 
-        steps.append((list(curr_weights[0]), reward))
+        total_reward *= ret
+
+        weights.append((env.current_month_timestamp(), *list(curr_weights[0])))
+        returns.append((env.current_month_timestamp(), ret))
 
         prev_weights = curr_weights
         env.step()
 
     print(total_reward)
-    print(steps)
+    weights_df = pd.DataFrame(weights, columns=['date', *env.data.columns])
+    # print(weights_df.head(n=50))
+    returns_df = pd.DataFrame(returns, columns=['date', 'return'])
 
 
 def parse_args():
@@ -150,8 +156,8 @@ def main():
 
     policy = PolicyPG(env, lookback_window=10)
 
-    # train(env, 100, session_name, policy)
-    backtest(env, session_name, policy)
+    train(env, 100, session_name, policy)
+    # backtest(env, session_name, policy)
 
 
 if __name__ == '__main__':

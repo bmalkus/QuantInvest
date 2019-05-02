@@ -43,6 +43,9 @@ class MarketEnv:
     def progress(self):
         return (self.current_month - self.period_start_month) / (self.period_end_month - self.period_start_month)
 
+    def current_month_timestamp(self):
+        return self.period_start + np.timedelta64(self.current_month, 'M')
+
     def current_mtm_returns(self):
         return self.month_to_month.iloc[self.current_month].values
 
