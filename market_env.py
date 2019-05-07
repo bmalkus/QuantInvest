@@ -34,8 +34,6 @@ class MarketEnv:
 
         self.period_start_ind = self.__months_diff(self.data.index[0], self.period_start)
         self.period_end_ind = self.__months_diff(self.data.index[0], self.period_end)
-        # self.period_start_ind = self.data.index.get_loc(self.period_start, method='nearest')
-        # self.period_end_ind = self.data.index.get_loc(self.period_end, method='nearest')
         self.reset()
 
     def reset(self):
@@ -57,10 +55,10 @@ class MarketEnv:
         return date
 
     def current_mtm_returns(self):
-        return 10 * (self.month_to_month.iloc[self.current_ind].values - 1)
+        return self.month_to_month.iloc[self.current_ind].values - 1
 
     def next_mtm_returns(self):
-        return 10 * (self.month_to_month.iloc[self.current_ind + 1].values - 1)
+        return self.month_to_month.iloc[self.current_ind + 1].values - 1
 
     def should_continue(self):
         return self.current_ind <= self.period_end_ind
@@ -74,15 +72,12 @@ class MarketEnv:
     def transaction_cost(self, prev_weights, new_weights):
         return np.sum(np.abs(new_weights[0] - prev_weights[0])) * self.TRANSACTION_COST
 
-    def get_data_from_n_days(self, n, month_offset=0):
+    def get_returns_from_n_days(self, n, month_offset=0):
         current_date = self.data.index[0] + np.timedelta64(self.current_ind + month_offset, 'M')
         period = current_date.to_period('M')
         ret = self.data[:period.end_time][-n:].values
-        # ret = self.data.iloc[self.current_ind - n:self.current_ind].values
-        # print(self.current_ind - n)
         ret /= ret[0]
-        # exit(0)
-        return (ret.T - 1) * 10
+        return ret.T - 1
 
     @staticmethod
     def __months_diff(earlier, later):
