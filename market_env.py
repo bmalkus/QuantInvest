@@ -14,13 +14,16 @@ class MarketEnv:
         self.month_to_month = self.data.groupby(pd.Grouper(freq='M'), as_index=False).nth(-1).pct_change() + 1
         self.month_to_month.iloc[0] = self.data.iloc[0]
 
+        self.day_to_day = self.data.pct_change() + 1
+        self.day_to_day.iloc[0] = self.data.iloc[0]
+
         self.period_start = None
         self.period_end = None
 
         # those are indices of months in self.month_to_month
-        self.period_start_month = None
-        self.current_month = None
-        self.period_end_month = None
+        self.period_start_ind = None
+        self.current_ind = None
+        self.period_end_ind = None
 
     def set_period(self, start, end):
         self.period_start = pd.to_datetime(start).replace(day=1)
@@ -29,34 +32,41 @@ class MarketEnv:
         if self.period_start >= self.period_end:
             raise ValueError('Period start cannot be same as or later than end')
 
-        self.period_start_month = self.__months_diff(self.data.index[0], self.period_start)
-        self.period_end_month = self.__months_diff(self.data.index[0], self.period_end)
-
+        self.period_start_ind = self.__months_diff(self.data.index[0], self.period_start)
+        self.period_end_ind = self.__months_diff(self.data.index[0], self.period_end)
+        # self.period_start_ind = self.data.index.get_loc(self.period_start, method='nearest')
+        # self.period_end_ind = self.data.index.get_loc(self.period_end, method='nearest')
         self.reset()
 
     def reset(self):
-        self.current_month = self.period_start_month
+        self.current_ind = self.period_start_ind
 
     def step(self):
-        self.current_month += 1
+        self.current_ind += 1
 
     def progress(self):
-        return (self.current_month - self.period_start_month) / (self.period_end_month - self.period_start_month)
+        return (self.current_ind - self.period_start_ind) / (self.period_end_ind - self.period_start_ind)
 
-    def current_month_timestamp(self):
-        return self.period_start + np.timedelta64(self.current_month, 'M')
+    def current_month_timestamp(self, end=False):
+        date = self.data.index[0] + np.timedelta64(self.current_ind, 'M')
+        period = date.to_period('M')
+        if end:
+            date = period.end_time
+        else:
+            date = period.start_time
+        return date
 
     def current_mtm_returns(self):
-        return self.month_to_month.iloc[self.current_month].values
+        return 10 * (self.month_to_month.iloc[self.current_ind].values - 1)
 
     def next_mtm_returns(self):
-        return self.month_to_month.iloc[self.current_month + 1].values
+        return 10 * (self.month_to_month.iloc[self.current_ind + 1].values - 1)
 
     def should_continue(self):
-        return self.current_month <= self.period_end_month
+        return self.current_ind <= self.period_end_ind
 
     def in_last_month(self):
-        return self.current_month == self.period_end_month
+        return self.current_ind == self.period_end_ind
 
     def number_of_assets(self):
         return len(self.data.columns)
@@ -65,9 +75,14 @@ class MarketEnv:
         return np.sum(np.abs(new_weights[0] - prev_weights[0])) * self.TRANSACTION_COST
 
     def get_data_from_n_days(self, n, month_offset=0):
-        current_date = self.period_start + np.timedelta64(self.current_month + month_offset, 'M')
+        current_date = self.data.index[0] + np.timedelta64(self.current_ind + month_offset, 'M')
         period = current_date.to_period('M')
-        return self.data[:period.end_time][-n:].values.T
+        ret = self.data[:period.end_time][-n:].values
+        # ret = self.data.iloc[self.current_ind - n:self.current_ind].values
+        # print(self.current_ind - n)
+        ret /= ret[0]
+        # exit(0)
+        return (ret.T - 1) * 10
 
     @staticmethod
     def __months_diff(earlier, later):
