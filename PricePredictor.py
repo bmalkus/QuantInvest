@@ -19,10 +19,6 @@ class PricePredictor:
         self.lookback_window = lookback_window
         self.number_of_assets = self.env.number_of_assets()
 
-        self.prices_lookback = None
-        self.prev_weights = None
-        self.new_weights = None
-
         self.model = None
 
         self.__build_network()
@@ -65,7 +61,7 @@ class PricePredictor:
 
     @staticmethod
     def __network_output_path(name):
-        return os.path.join(results_output_path(name), name)
+        return os.path.join(results_output_path(name), 'pp', '{}'.format(name))
 
     def try_load(self, name):
         try:
