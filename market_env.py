@@ -70,7 +70,7 @@ class MarketEnv:
         return len(self.data.columns)
 
     def transaction_cost(self, prev_weights, new_weights):
-        return np.sum(np.abs(new_weights[0] - prev_weights[0])) * self.TRANSACTION_COST
+        return np.sum(np.abs(new_weights - prev_weights)) * self.TRANSACTION_COST
 
     def get_returns_from_n_days(self, n, month_offset=0):
         current_date = self.data.index[0] + np.timedelta64(self.current_ind + month_offset, 'M')

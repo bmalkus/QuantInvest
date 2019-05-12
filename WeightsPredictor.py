@@ -54,7 +54,7 @@ class WeightsPredictor:
 
         network = Dense(network.get_shape()[1], 'relu', kernel_initializer='VarianceScaling')(network)
 
-        new_weights = Dense(self.number_of_assets, 'softmax', kernel_initializer='VarianceScaling')(network)
+        new_weights = Dense(self.number_of_assets, 'linear', kernel_initializer='VarianceScaling')(network)
 
         self.model = tf.keras.models.Model(inputs=[self.price_pred, self.prev_weights], outputs=new_weights)
 
